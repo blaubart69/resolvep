@@ -14,43 +14,68 @@ namespace resolvep
     {
         static void Main(string[] args)
         {
-            string filename = args[0];
+            TextReader hoststream;
+            if (args.Length == 0)
+            {
+                hoststream = Console.In;
+            }
+            else
+            {
+                string filename = args[0];
+                hoststream = new StreamReader(filename);
+            }
 
             int all = 0;
             int done = 0;
+            int error = 0;
             AutoResetEvent oneResolved = new AutoResetEvent(false);
 
-            foreach (string host in File.ReadLines(filename) )
+            using (hoststream)
             {
-                all += 1;
-                resolveAsync(host).ContinueWith((Task t) => { Interlocked.Increment(ref done); oneResolved.Set(); });
+                foreach (string host in ReadLines(hoststream))
+                {
+                    all += 1;
+                    resolveAsync(host)
+                        .ContinueWith((Task t) =>
+                            {
+                                if ( t.Exception != null )
+                                {
+                                    Interlocked.Increment(ref error);
+                                }
+                                Interlocked.Increment(ref done);
+                                oneResolved.Set();
+                            });
+                }
             }
 
             while (all != done)
             {
                 oneResolved.WaitOne();
-                Console.WriteLine($"all: {all}, done: {done}");
             }
-
+            Console.Error.WriteLine($"all: {all}, done: {done}, error: {error}");
         }
         static async Task resolveAsync(string hostname)
         {
             string ips;
             try
             {
-                Console.WriteLine($"querying [{hostname}]...");
                 IPHostEntry entry = await Dns.GetHostEntryAsync(hostname);
-
                 ips = String.Join(",", entry.AddressList.Select(i => i.ToString()));
-
-                throw new Exception("exi");
             }
             catch ( SocketException sox )
             {
                 ips = sox.Message;
             }
 
-            Console.WriteLine($"hostname: {hostname}, ips: {ips}");
+            Console.WriteLine($"{hostname}\t{ips}");
+        }
+        static IEnumerable<string> ReadLines(TextReader reader)
+        {
+            string line;
+            while ( (line=reader.ReadLine()) != null )
+            {
+                yield return line;
+            }
         }
     }
 }
