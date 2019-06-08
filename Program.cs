@@ -25,17 +25,16 @@ namespace resolvep
                 hoststream = new StreamReader(filename);
             }
 
-            long all = 0;
-            long done = 0;
+            long counter = 0;
             int error = 0;
             ManualResetEvent finished = new ManualResetEvent(false);
-            bool allHostsEnqueued = false;
 
             using (hoststream)
             {
+                Interlocked.Increment(ref counter); // !!!
                 foreach (string host in ReadLines(hoststream))
                 {
-                    all += 1;
+                    Interlocked.Increment(ref counter);
                     resolveAsync(host.Trim())
                         .ContinueWith((Task t) =>
                             {
@@ -43,21 +42,15 @@ namespace resolvep
                                 {
                                     Interlocked.Increment(ref error);
                                 }
-                                long tmpDone = Interlocked.Increment(ref done);
-                                if (allHostsEnqueued)
+                                if (Interlocked.Decrement(ref counter) == 0)
                                 {
-                                    if (all == tmpDone)
-                                    {
-                                        finished.Set();
-                                    }
+                                    finished.Set();
                                 }
-                                //Console.Error.WriteLine($"all: {all}, done: {done}, error: {error}");
                             });
                 }
-                allHostsEnqueued = true;
             }
 
-            if (all != Interlocked.Read(ref done) )
+            if (Interlocked.Decrement(ref counter) != 0 )
             {
                 finished.WaitOne();
             }
