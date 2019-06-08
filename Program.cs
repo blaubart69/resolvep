@@ -31,18 +31,6 @@ namespace resolvep
             ManualResetEvent finished = new ManualResetEvent(false);
             bool allHostsEnqueued = false;
 
-            Action OnEnded = () =>
-            {
-                long tmpDone = Interlocked.Increment(ref done);
-                if (allHostsEnqueued)
-                {
-                    if (all == tmpDone)
-                    {
-                        finished.Set();
-                    }
-                }
-            };
-
             using (hoststream)
             {
                 foreach (string host in ReadLines(hoststream))
@@ -55,7 +43,14 @@ namespace resolvep
                                 {
                                     Interlocked.Increment(ref error);
                                 }
-                                OnEnded();
+                                long tmpDone = Interlocked.Increment(ref done);
+                                if (allHostsEnqueued)
+                                {
+                                    if (all == tmpDone)
+                                    {
+                                        finished.Set();
+                                    }
+                                }
                                 //Console.Error.WriteLine($"all: {all}, done: {done}, error: {error}");
                             });
                 }
