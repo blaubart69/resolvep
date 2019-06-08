@@ -25,34 +25,47 @@ namespace resolvep
                 hoststream = new StreamReader(filename);
             }
 
-            int all = 0;
-            int done = 0;
+            RunV2(hoststream);
+            
+            //Console.Error.WriteLine($"all: {all}, done: {done}, error: {error}");
+        }
+        static void RunV2(TextReader hoststream)
+        {
+            RunTasks.RunAndWaitForTasks(
+                ReadLines(hoststream)
+                .Select(hostname => resolveAsync(hostname.Trim())));
+        }
+        static void RunV1(TextReader hoststream)
+        {
+            long counter = 0;
             int error = 0;
-            AutoResetEvent oneResolved = new AutoResetEvent(false);
+            ManualResetEvent finished = new ManualResetEvent(false);
 
             using (hoststream)
             {
+                Interlocked.Increment(ref counter); // !!!
                 foreach (string host in ReadLines(hoststream))
                 {
-                    all += 1;
-                    resolveAsync(host)
+                    Interlocked.Increment(ref counter);
+                    resolveAsync(host.Trim())
                         .ContinueWith((Task t) =>
+                        {
+                            if (t.Exception != null)
                             {
-                                if ( t.Exception != null )
-                                {
-                                    Interlocked.Increment(ref error);
-                                }
-                                Interlocked.Increment(ref done);
-                                oneResolved.Set();
-                            });
+                                Interlocked.Increment(ref error);
+                            }
+                            if (Interlocked.Decrement(ref counter) == 0)
+                            {
+                                finished.Set();
+                            }
+                        });
                 }
             }
 
-            while (all != done)
+            if (Interlocked.Decrement(ref counter) != 0)
             {
-                oneResolved.WaitOne();
+                finished.WaitOne();
             }
-            Console.Error.WriteLine($"all: {all}, done: {done}, error: {error}");
         }
         static async Task resolveAsync(string hostname)
         {
@@ -60,11 +73,11 @@ namespace resolvep
             try
             {
                 IPHostEntry entry = await Dns.GetHostEntryAsync(hostname);
-                ips = String.Join(",", entry.AddressList.Select(i => i.ToString()));
+                ips = String.Join(" ", entry.AddressList.Select(i => i.ToString()));
             }
             catch ( SocketException sox )
             {
-                ips = sox.Message;
+                ips = sox.Message.Replace(' ','_');
             }
 
             Console.WriteLine($"{hostname}\t{ips}");
