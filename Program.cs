@@ -25,34 +25,48 @@ namespace resolvep
                 hoststream = new StreamReader(filename);
             }
 
-            int all = 0;
-            int done = 0;
+            long all = 0;
+            long done = 0;
             int error = 0;
-            AutoResetEvent oneResolved = new AutoResetEvent(false);
+            ManualResetEvent finished = new ManualResetEvent(false);
+            bool allHostsEnqueued = false;
+
+            Action OnEnded = () =>
+            {
+                long tmpDone = Interlocked.Increment(ref done);
+                if (allHostsEnqueued)
+                {
+                    if (all == tmpDone)
+                    {
+                        finished.Set();
+                    }
+                }
+            };
 
             using (hoststream)
             {
                 foreach (string host in ReadLines(hoststream))
                 {
                     all += 1;
-                    resolveAsync(host)
+                    resolveAsync(host.Trim())
                         .ContinueWith((Task t) =>
                             {
                                 if ( t.Exception != null )
                                 {
                                     Interlocked.Increment(ref error);
                                 }
-                                Interlocked.Increment(ref done);
-                                oneResolved.Set();
+                                OnEnded();
+                                //Console.Error.WriteLine($"all: {all}, done: {done}, error: {error}");
                             });
                 }
+                allHostsEnqueued = true;
             }
 
-            while (all != done)
+            if (all != Interlocked.Read(ref done) )
             {
-                oneResolved.WaitOne();
+                finished.WaitOne();
             }
-            Console.Error.WriteLine($"all: {all}, done: {done}, error: {error}");
+            //Console.Error.WriteLine($"all: {all}, done: {done}, error: {error}");
         }
         static async Task resolveAsync(string hostname)
         {
@@ -60,11 +74,11 @@ namespace resolvep
             try
             {
                 IPHostEntry entry = await Dns.GetHostEntryAsync(hostname);
-                ips = String.Join(",", entry.AddressList.Select(i => i.ToString()));
+                ips = String.Join(" ", entry.AddressList.Select(i => i.ToString()));
             }
             catch ( SocketException sox )
             {
-                ips = sox.Message;
+                ips = sox.Message.Replace(' ','_');
             }
 
             Console.WriteLine($"{hostname}\t{ips}");
