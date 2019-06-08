@@ -25,6 +25,18 @@ namespace resolvep
                 hoststream = new StreamReader(filename);
             }
 
+            RunV2(hoststream);
+            
+            //Console.Error.WriteLine($"all: {all}, done: {done}, error: {error}");
+        }
+        static void RunV2(TextReader hoststream)
+        {
+            RunTasks.RunAndWaitForTasks(
+                ReadLines(hoststream)
+                .Select(hostname => resolveAsync(hostname.Trim())));
+        }
+        static void RunV1(TextReader hoststream)
+        {
             long counter = 0;
             int error = 0;
             ManualResetEvent finished = new ManualResetEvent(false);
@@ -37,24 +49,23 @@ namespace resolvep
                     Interlocked.Increment(ref counter);
                     resolveAsync(host.Trim())
                         .ContinueWith((Task t) =>
+                        {
+                            if (t.Exception != null)
                             {
-                                if ( t.Exception != null )
-                                {
-                                    Interlocked.Increment(ref error);
-                                }
-                                if (Interlocked.Decrement(ref counter) == 0)
-                                {
-                                    finished.Set();
-                                }
-                            });
+                                Interlocked.Increment(ref error);
+                            }
+                            if (Interlocked.Decrement(ref counter) == 0)
+                            {
+                                finished.Set();
+                            }
+                        });
                 }
             }
 
-            if (Interlocked.Decrement(ref counter) != 0 )
+            if (Interlocked.Decrement(ref counter) != 0)
             {
                 finished.WaitOne();
             }
-            //Console.Error.WriteLine($"all: {all}, done: {done}, error: {error}");
         }
         static async Task resolveAsync(string hostname)
         {
