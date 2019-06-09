@@ -27,19 +27,25 @@ namespace resolvep
 
             using (hoststream)
             {
-                RunV3(hoststream);
+                RunMax(hoststream);
             }
+        }
+        static void RunMax(TextReader hoststream)
+        {
+            new StartMaxTasks().Run(
+                tasks: ReadLines(hoststream).Select(hostname => resolveAsync(hostname.Trim())),
+                MaxParallel: 8);
         }
         static void RunV3(TextReader hoststream)
         {
-            RunTasks.RunAndWaitMaxTasks(
+            TasksHelper.RunMaxParallel(
                 ReadLines(hoststream)
-                .Select(hostname => resolveAsync(hostname.Trim())),
+                .Select(hostname => resolveAsync(hostname.Trim()) ),
                 MaxParallel: 16);
         }
         static void RunV2(TextReader hoststream)
         {
-            RunTasks.RunAndWaitForTasks(
+            TasksHelper.StartAllAndWaitForThem(
                 ReadLines(hoststream)
                 .Select(hostname => resolveAsync(hostname.Trim())));
         }

@@ -8,32 +8,33 @@ using System.Threading.Tasks;
 
 namespace resolvep
 {
-    static class RunTasks
+    public static class TasksHelper
     {
-
-        public static void RunAndWaitForTasks(IEnumerable<Task> TaskGenerator)
+        public static void StartAllAndWaitForThem(IEnumerable<Task> tasksToStart)
         {
             long counter = 1; // !!!!
             long error = 0;
 
             using (ManualResetEvent finished = new ManualResetEvent(false))
             {
-                foreach (Task t in TaskGenerator)
+                foreach (Task t in tasksToStart)
                 {
                     Interlocked.Increment(ref counter);
 
-                    t.ContinueWith((Task tx) =>
-                       {
-                           if (tx.Exception != null)
-                           {
-                               Interlocked.Increment(ref error);
-                           }
+                    t
+                    .ContinueWith((Task workingTask) =>
+                    {
+                        if (workingTask.Exception != null)
+                        {
+                            Interlocked.Increment(ref error);
+                        }
 
-                           if (Interlocked.Decrement(ref counter) == 0)
-                           {
-                               finished.Set();
-                           }
-                       });
+                        if (Interlocked.Decrement(ref counter) == 0)
+                        {
+                            finished.Set();
+                        }
+                    })
+                    .ConfigureAwait(false);
                 }
 
                 if (Interlocked.Decrement(ref counter) != 0)
@@ -42,7 +43,8 @@ namespace resolvep
                 }
             }
         }
-        public static void RunAndWaitMaxTasks(IEnumerable<Task> TaskGenerator, int MaxParallel)
+
+        public static void RunMaxParallel(IEnumerable<Task> TaskGenerator, int MaxParallel)
         {
             long counter = 1; // !!!! importante !!!!
             long error = 0;
@@ -50,10 +52,10 @@ namespace resolvep
 
             using (ManualResetEvent finished = new ManualResetEvent(false))
             {
-                var tasksEnum = TaskGenerator.GetEnumerator();
+                IEnumerator<Task> tasksEnum = TaskGenerator.GetEnumerator();
 
-                Action<Task> continueWith = null;
-                continueWith = (Task workingTask) =>
+                Action<Task> afterWork = null;
+                afterWork = (Task workingTask) =>
                 {
                     Interlocked.Increment(ref done);
 
@@ -67,7 +69,7 @@ namespace resolvep
                         if (tasksEnum.MoveNext())
                         {
                             Interlocked.Increment(ref counter);
-                            tasksEnum.Current.ContinueWith(continueWith);
+                            tasksEnum.Current.ContinueWith(afterWork);
                         }
                     }
 
@@ -86,7 +88,9 @@ namespace resolvep
                         if (tasksEnum.MoveNext())
                         {
                             Interlocked.Increment(ref counter);
-                            tasksEnum.Current.ContinueWith(continueWith);
+                            tasksEnum.Current
+                                .ContinueWith(afterWork)
+                                .ConfigureAwait(false);
                         }
                         else
                         {
@@ -101,6 +105,5 @@ namespace resolvep
                 }
             }
         }
-
     }
 }
