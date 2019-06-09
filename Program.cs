@@ -25,9 +25,17 @@ namespace resolvep
                 hoststream = new StreamReader(filename);
             }
 
-            RunV2(hoststream);
-            
-            //Console.Error.WriteLine($"all: {all}, done: {done}, error: {error}");
+            using (hoststream)
+            {
+                RunV3(hoststream);
+            }
+        }
+        static void RunV3(TextReader hoststream)
+        {
+            RunTasks.RunAndWaitMaxTasks(
+                ReadLines(hoststream)
+                .Select(hostname => resolveAsync(hostname.Trim())),
+                MaxParallel: 16);
         }
         static void RunV2(TextReader hoststream)
         {
