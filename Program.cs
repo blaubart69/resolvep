@@ -34,7 +34,7 @@ namespace resolvep
         {
             new StartMaxTasks().Run(
                 tasks: ReadLines(hoststream).Select(hostname => resolveAsync(hostname.Trim())),
-                MaxParallel: 8);
+                MaxParallel: 128);
         }
         static void RunV3(TextReader hoststream)
         {
