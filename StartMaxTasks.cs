@@ -25,7 +25,7 @@ namespace resolvep
         /// so only when a task has ended a new one is started.
         /// That should be the limiting logic here.
         /// 
-        /// ad "_counter=1"
+        /// ad "_counter=1" (by Mike Brüstle. Thanks! :-) )
         ///     It's the "outer bracket".
         ///     This bracket is "closed" at "if (Interlocked.Decrement(ref _counter) != 0)"
         ///     
@@ -59,6 +59,28 @@ namespace resolvep
             using (_taskEnum = tasks.GetEnumerator())
             using (_finished = new ManualResetEvent(false))
             {
+                _counter = 1; // !!!!! Mike's way :-)               //  ---+
+                                                                    //     |
+                for (int i = 0; i < MaxParallel; ++i)               //     |
+                {                                                   //     |
+                    if (StartNextTask() == false)                   //     |
+                    {                                               //     |
+                        break;                                      //     |
+                    }                                               //     |
+                }                                                   //     |
+                                                                    //     |
+                if (Interlocked.Decrement(ref _counter) != 0)       //  <--+
+                {
+                    _finished.WaitOne();
+                }
+            }
+        }
+        public Task Start(IEnumerable<Task> tasks, int MaxParallel)
+        {
+            _taskEnum = tasks.GetEnumerator();
+            _finished = new ManualResetEvent(false);
+
+            {
                 _counter = 1; // !!!!! Mike's way :-)
 
                 for (int i = 0; i < MaxParallel; ++i)
@@ -69,12 +91,20 @@ namespace resolvep
                     }
                 }
 
-                if (Interlocked.Decrement(ref _counter) != 0)
-                {
-                    _finished.WaitOne();
-                }
+                return
+                    Task.Run(() =>
+                    {
+                       if (Interlocked.Decrement(ref _counter) != 0)
+                       {
+                           _finished.WaitOne();
+                       }
+
+                        _taskEnum.Dispose();
+                        _finished.Dispose();
+                    });
             }
         }
+
 
         private void PostWork(Task workingTask)
         {
