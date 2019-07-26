@@ -10,7 +10,7 @@ using System.Threading;
 
 namespace resolvep
 {
-    class Program
+    static class Program
     {
         static void Main(string[] args)
         {
@@ -27,65 +27,10 @@ namespace resolvep
 
             using (hoststream)
             {
-                StartMax(hoststream);
-            }
-        }
-        static void StartMax(TextReader hoststream)
-        {
-            new StartMaxTasks().Start(
-                tasks: ReadLines(hoststream).Select(hostname => resolveAsync(hostname.Trim())),
-                MaxParallel: 128)
-            .Wait();
-        }
-        static void RunMax(TextReader hoststream)
-        {
-            new StartMaxTasks().Run(
-                tasks: ReadLines(hoststream).Select(hostname => resolveAsync(hostname.Trim())),
-                MaxParallel: 128);
-        }
-        static void RunV3(TextReader hoststream)
-        {
-            TasksHelper.RunMaxParallel(
-                ReadLines(hoststream)
-                .Select(hostname => resolveAsync(hostname.Trim()) ),
-                MaxParallel: 16);
-        }
-        static void RunV2(TextReader hoststream)
-        {
-            TasksHelper.StartAllAndWaitForThem(
-                ReadLines(hoststream)
-                .Select(hostname => resolveAsync(hostname.Trim())));
-        }
-        static void RunV1(TextReader hoststream)
-        {
-            long counter = 0;
-            int error = 0;
-            ManualResetEvent finished = new ManualResetEvent(false);
-
-            using (hoststream)
-            {
-                Interlocked.Increment(ref counter); // !!!
-                foreach (string host in ReadLines(hoststream))
-                {
-                    Interlocked.Increment(ref counter);
-                    resolveAsync(host.Trim())
-                        .ContinueWith((Task t) =>
-                        {
-                            if (t.Exception != null)
-                            {
-                                Interlocked.Increment(ref error);
-                            }
-                            if (Interlocked.Decrement(ref counter) == 0)
-                            {
-                                finished.Set();
-                            }
-                        });
-                }
-            }
-
-            if (Interlocked.Decrement(ref counter) != 0)
-            {
-                finished.WaitOne();
+                new MaxTasks().Start(
+                    tasks:          ReadLines(hoststream).Select(hostname => resolveAsync(hostname.Trim())),
+                    MaxParallel:    128)
+                .Wait();
             }
         }
         static async Task resolveAsync(string hostname)

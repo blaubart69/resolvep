@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace resolvep
 {
-    public class StartMaxTasks
+    public class MaxTasks
     {
         ManualResetEvent _finished;
         IEnumerator<Task> _taskEnum;
