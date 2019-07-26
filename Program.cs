@@ -19,7 +19,8 @@ namespace resolvep
             }
             else
             {
-                if (String.Compare("-h", args[0], ignoreCase: true) == 0)
+                if (   String.Compare("-h",     args[0], ignoreCase: true) == 0
+                    || String.Compare("--help", args[0], ignoreCase: true) == 0)
                 {
                     PrintUsage();
                     return;
