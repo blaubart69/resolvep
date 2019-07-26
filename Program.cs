@@ -48,7 +48,7 @@ namespace resolvep
               + "\nlookup hostnames in DNS." 
               + "\neither you specify a filename with one host per line. Otherwise hostnames will be read via stdin."
             + "\n\nOptions:"
-              + "\n-h ... show help"
+              + "\n  -h, --help                 show this message and exit"
               );
         }
 
