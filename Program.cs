@@ -2,11 +2,9 @@
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Net;
 using System.Threading.Tasks;
 using System.Net.Sockets;
-using System.Threading;
 
 namespace resolvep
 {
@@ -21,8 +19,16 @@ namespace resolvep
             }
             else
             {
-                string filename = args[0];
-                hoststream = new StreamReader(filename);
+                if (String.Compare("-h", args[0], ignoreCase: true) == 0)
+                {
+                    PrintUsage();
+                    return;
+                }
+                else
+                {
+                    string filename = args[0];
+                    hoststream = new StreamReader(filename);
+                }
             }
 
             using (hoststream)
@@ -33,6 +39,18 @@ namespace resolvep
                 .Wait();
             }
         }
+
+        private static void PrintUsage()
+        {
+            Console.WriteLine(
+                  "usage: resolvep [-h] [filename]"
+              + "\nlookup hostnames in DNS." 
+              + "\neither you specify a filename with one host per line. Otherwise hostnames will be read via stdin."
+            + "\n\nOptions:"
+              + "\n-h ... show help"
+              );
+        }
+
         static async Task resolveAsync(string hostname)
         {
             string ips;
